@@ -1,0 +1,18 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+
+# Environment variables — NEVER commit your real .env
+.env
+.env.local
+.env.*.local
+
+# Firebase local
+.firebase/
+
+# OS / Editor
+.DS_Store
+.vscode/
+*.log

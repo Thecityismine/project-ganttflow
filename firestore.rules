@@ -1,0 +1,10 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Authenticated users can read/write their own projects
+    // For now: open access — tighten with auth later
+    match /gantt_projects/{docId} {
+      allow read, write: if true;
+    }
+  }
+}

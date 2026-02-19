@@ -301,7 +301,7 @@ function GanttChart({ project }) {
             <div key={phase.id}>
               <div style={{ height: ROW_H, display: "flex", alignItems: "center", fontWeight: 800, fontSize: 9, textTransform: "uppercase", letterSpacing: "0.08em", background: "#ebebeb", paddingLeft: 6, borderBottom: "1px solid #ccc" }}>{phase.name}</div>
               {phase.tasks.map(task => (
-                <div key={task.id} style={{ height: ROW_H, display: "flex", alignItems: "center", fontSize: 8, paddingLeft: 14, borderBottom: "1px solid #eee", color: "#222" }}>{task.name}</div>
+                <div key={task.id} style={{ height: ROW_H, display: "flex", alignItems: "center", fontSize: 9, paddingLeft: 14, borderBottom: "1px solid #eee", color: "#222" }}>{task.name}</div>
               ))}
             </div>
           ))}
@@ -377,13 +377,13 @@ function GanttChart({ project }) {
         {Object.entries(TASK_TYPES).filter(([key]) => usedTypes.has(key)).map(([key, t]) => (
           <div key={key} style={{ display: "flex", alignItems: "center", gap: 5 }}>
             <div style={{ width: 20, height: 8, background: t.color, borderRadius: 1, border: key === "permit" ? "1px solid #aaa" : "none" }} />
-            <span style={{ fontSize: 8, color: "#555" }}>{t.label}</span>
+            <span style={{ fontSize: 10, color: "#555" }}>{t.label}</span>
           </div>
         ))}
         {project.showToday !== false && todayCol !== null && (
           <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
             <div style={{ width: 2, height: 10, background: "#ef4444" }} />
-            <span style={{ fontSize: 8, color: "#555" }}>Today</span>
+            <span style={{ fontSize: 10, color: "#555" }}>Today</span>
           </div>
         )}
       </div>

@@ -448,15 +448,25 @@ function GanttEditor({ project, onChange }) {
 
   const handleStartDateChange = (newStart) => {
     upd(p => {
+      const prevStart = pd(p.startDate);
+      const nextStart = pd(newStart);
       p.startDate = newStart;
-      if (p.phases.length && p.phases[0].tasks.length) {
-        const firstTask = p.phases[0].tasks[0];
-        if (!firstTask._customStart) {
-          firstTask.startDate = newStart;
-          if (pd(firstTask.endDate) <= pd(newStart))
-            firstTask.endDate = toStr(addDays(pd(newStart), 14));
-        }
-      }
+      if (!prevStart || !nextStart) return;
+
+      const dayShift = Math.round((nextStart - prevStart) / (24 * 60 * 60 * 1000));
+      if (!dayShift) return;
+
+      const projectEnd = pd(p.endDate);
+      if (projectEnd) p.endDate = toStr(addDays(projectEnd, dayShift));
+
+      p.phases.forEach((phase) => {
+        phase.tasks.forEach((task) => {
+          const taskStart = pd(task.startDate);
+          const taskEnd = pd(task.endDate);
+          if (taskStart) task.startDate = toStr(addDays(taskStart, dayShift));
+          if (taskEnd) task.endDate = toStr(addDays(taskEnd, dayShift));
+        });
+      });
     });
   };
 

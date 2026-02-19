@@ -34,6 +34,24 @@ const MONTHS  = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","No
 function mondayBefore(d) {
   return addDays(d, -((d.getDay() - 1 + 7) % 7));
 }
+function sundayAfter(d) {
+  return addDays(d, (7 - d.getDay()) % 7);
+}
+function buildMonthWeeks(yr, mo) {
+  const monthStart = new Date(yr, mo, 1);
+  const monthEnd = new Date(yr, mo + 1, 0);
+  const firstWeekStart = mondayBefore(monthStart);
+  const lastWeekEnd = sundayAfter(monthEnd);
+  const weeks = [];
+  let cur = firstWeekStart;
+  let idx = 1;
+  while (cur <= lastWeekEnd) {
+    weeks.push({ label: `W${idx}`, start: cur, end: addDays(cur, 6) });
+    cur = addDays(cur, 7);
+    idx++;
+  }
+  return weeks;
+}
 function buildTimeline(startStr, endStr) {
   const start = pd(startStr), end = pd(endStr);
   if (!start || !end) return [];
@@ -41,11 +59,7 @@ function buildTimeline(startStr, endStr) {
   const months = [];
   while (cur <= end) {
     const yr = cur.getFullYear(), mo = cur.getMonth();
-    const w1 = mondayBefore(new Date(yr, mo, 1));
-    months.push({ yr, mo, weeks: Array.from({ length: 4 }, (_, i) => {
-      const ws = addDays(w1, i * 7);
-      return { label: `W${i+1}`, start: ws, end: addDays(ws, 6) };
-    })});
+    months.push({ yr, mo, weeks: buildMonthWeeks(yr, mo) });
     cur = new Date(yr, mo + 1, 1);
   }
   return months;
@@ -274,16 +288,13 @@ function GanttChart({ project }) {
     while (totalCols < MIN_PREVIEW_COLS) {
       const yr = cursor.getFullYear();
       const mo = cursor.getMonth();
-      const w1 = mondayBefore(new Date(yr, mo, 1));
+      const weeks = buildMonthWeeks(yr, mo);
       months.push({
         yr,
         mo,
-        weeks: Array.from({ length: 4 }, (_, i) => {
-          const ws = addDays(w1, i * 7);
-          return { label: `W${i + 1}`, start: ws, end: addDays(ws, 6) };
-        }),
+        weeks,
       });
-      totalCols += 4;
+      totalCols += weeks.length;
       cursor = new Date(yr, mo + 1, 1);
     }
   }

@@ -596,12 +596,11 @@ function GanttEditor({ project, onChange }) {
                 <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 2 }}>
                   <button
                     type="button"
-                    title="Move to top"
+                    title="Move up"
                     onClick={() => upd((p) => {
                       if (ti === 0) return;
                       const tasks = p.phases[pi].tasks;
-                      const [moved] = tasks.splice(ti, 1);
-                      tasks.unshift(moved);
+                      [tasks[ti - 1], tasks[ti]] = [tasks[ti], tasks[ti - 1]];
                     })}
                     disabled={ti === 0}
                     style={moveBtn(ti === 0)}
@@ -610,12 +609,11 @@ function GanttEditor({ project, onChange }) {
                   </button>
                   <button
                     type="button"
-                    title="Move to bottom"
+                    title="Move down"
                     onClick={() => upd((p) => {
                       const tasks = p.phases[pi].tasks;
                       if (ti === tasks.length - 1) return;
-                      const [moved] = tasks.splice(ti, 1);
-                      tasks.push(moved);
+                      [tasks[ti + 1], tasks[ti]] = [tasks[ti], tasks[ti + 1]];
                     })}
                     disabled={ti === phase.tasks.length - 1}
                     style={moveBtn(ti === phase.tasks.length - 1)}

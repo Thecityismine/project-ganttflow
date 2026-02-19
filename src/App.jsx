@@ -526,6 +526,22 @@ function GanttEditor({ project, onChange }) {
 
   const inp = { background: C.surface, border: `1px solid ${C.border}`, color: C.text, borderRadius: 4, padding: "4px 8px", fontSize: 12, outline: "none", width: "100%", fontFamily: "inherit" };
   const lbl = { fontSize: 10, color: C.textMuted, fontWeight: 600, letterSpacing: "0.05em", textTransform: "uppercase", marginBottom: 3, display: "block" };
+  const moveBtn = (disabled) => ({
+    background: "none",
+    border: `1px solid ${C.border}`,
+    color: C.textDim,
+    borderRadius: 4,
+    width: 22,
+    height: 14,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    cursor: disabled ? "not-allowed" : "pointer",
+    opacity: disabled ? 0.35 : 1,
+    fontSize: 10,
+    lineHeight: 1,
+    padding: 0,
+  });
 
   return (
     <div className="editor-root" style={{ padding: 20, fontFamily: "'DM Sans',sans-serif" }}>
@@ -573,10 +589,38 @@ function GanttEditor({ project, onChange }) {
           </div>
           <div className="phase-table-wrap" style={{ padding: "10px 14px" }}>
             <div className="phase-task-grid phase-task-header" style={{ display: "grid", gap: 8, marginBottom: 6 }}>
-              {["Task Name","Start Date","End Date","Bar Type","Duration Label",""].map((h, i) => <div key={i} style={lbl}>{h}</div>)}
+              {["","Task Name","Start Date","End Date","Bar Type","Duration Label",""].map((h, i) => <div key={i} style={lbl}>{h}</div>)}
             </div>
             {phase.tasks.map((task, ti) => (
               <div className="phase-task-grid phase-task-row" key={task.id} style={{ display: "grid", gap: 8, marginBottom: 6, alignItems: "center" }}>
+                <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 2 }}>
+                  <button
+                    type="button"
+                    title="Move up"
+                    onClick={() => upd((p) => {
+                      if (ti === 0) return;
+                      const tasks = p.phases[pi].tasks;
+                      [tasks[ti - 1], tasks[ti]] = [tasks[ti], tasks[ti - 1]];
+                    })}
+                    disabled={ti === 0}
+                    style={moveBtn(ti === 0)}
+                  >
+                    ▲
+                  </button>
+                  <button
+                    type="button"
+                    title="Move down"
+                    onClick={() => upd((p) => {
+                      const tasks = p.phases[pi].tasks;
+                      if (ti === tasks.length - 1) return;
+                      [tasks[ti + 1], tasks[ti]] = [tasks[ti], tasks[ti + 1]];
+                    })}
+                    disabled={ti === phase.tasks.length - 1}
+                    style={moveBtn(ti === phase.tasks.length - 1)}
+                  >
+                    ▼
+                  </button>
+                </div>
                 <input value={task.name} onChange={e => upd(p => { p.phases[pi].tasks[ti].name = e.target.value; })} style={inp} placeholder="Task name" />
                 <input type="date" value={task.startDate} onChange={e => upd(p => { p.phases[pi].tasks[ti].startDate = e.target.value; p.phases[pi].tasks[ti]._customStart = true; })} style={inp} />
                 <input type="date" value={task.endDate} onChange={e => upd(p => { p.phases[pi].tasks[ti].endDate = e.target.value; })} style={inp} />
@@ -756,7 +800,7 @@ export default function App() {
         ::-webkit-scrollbar-thumb { background: ${C.border}; border-radius: 3px; }
         .project-meta-grid { grid-template-columns: 1fr 1fr 140px 140px 160px auto; }
         .phase-table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
-        .phase-task-grid { grid-template-columns: minmax(220px, 1fr) 115px 115px 195px 115px 28px; min-width: 790px; }
+        .phase-task-grid { grid-template-columns: 34px minmax(220px, 1fr) 115px 115px 195px 115px 28px; min-width: 824px; }
         .dashboard-grid { grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)) !important; }
         @media (max-width: 960px) {
           .editor-root { padding: 14px !important; }
@@ -768,7 +812,7 @@ export default function App() {
           .today-line-cell { align-items: flex-start !important; }
           .phase-header-row { flex-wrap: wrap; }
           .phase-header-row button { width: 100%; }
-          .phase-task-grid { min-width: 760px; }
+          .phase-task-grid { min-width: 800px; }
           .dashboard-root { padding: 14px 10px !important; }
           .dashboard-grid { grid-template-columns: 1fr !important; gap: 12px !important; }
           .project-card, .new-project-card { padding: 14px !important; }

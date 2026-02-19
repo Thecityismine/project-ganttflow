@@ -448,12 +448,19 @@ function GanttEditor({ project, onChange }) {
 
   const handleStartDateChange = (newStart) => {
     upd(p => {
-      const prevStart = pd(p.startDate);
       const nextStart = pd(newStart);
       p.startDate = newStart;
-      if (!prevStart || !nextStart) return;
+      if (!nextStart) return;
 
-      const dayShift = Math.round((nextStart - prevStart) / (24 * 60 * 60 * 1000));
+      const taskStartDates = p.phases
+        .flatMap((phase) => phase.tasks.map((task) => pd(task.startDate)))
+        .filter(Boolean);
+      const anchorStart = taskStartDates.length
+        ? taskStartDates.reduce((min, d) => (d < min ? d : min))
+        : pd(p.startDate);
+      if (!anchorStart) return;
+
+      const dayShift = Math.round((nextStart - anchorStart) / (24 * 60 * 60 * 1000));
       if (!dayShift) return;
 
       const projectEnd = pd(p.endDate);
@@ -467,6 +474,15 @@ function GanttEditor({ project, onChange }) {
           if (taskEnd) task.endDate = toStr(addDays(taskEnd, dayShift));
         });
       });
+
+      // Keep project end aligned with shifted tasks.
+      const shiftedTaskEnds = p.phases
+        .flatMap((phase) => phase.tasks.map((task) => pd(task.endDate)))
+        .filter(Boolean);
+      if (shiftedTaskEnds.length) {
+        const maxEnd = shiftedTaskEnds.reduce((max, d) => (d > max ? d : max));
+        p.endDate = toStr(maxEnd);
+      }
     });
   };
 

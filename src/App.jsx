@@ -362,9 +362,7 @@ function GanttChart({ project }) {
             const phaseStart = phaseStartDates.length ? phaseStartDates.reduce((a, b) => a < b ? a : b) : null;
             const phaseEnd   = phaseEndDates.length   ? phaseEndDates.reduce((a, b)   => a > b ? a : b) : null;
             const phaseBar   = getBarCols(phaseStart, phaseEnd, months);
-            const phaseWeeks = (phaseStart && phaseEnd && pd(phaseStart) && pd(phaseEnd))
-              ? Math.ceil((pd(phaseEnd) - pd(phaseStart)) / (7 * 24 * 60 * 60 * 1000))
-              : null;
+            const phaseWeeks = phaseBar ? (phaseBar.ec - phaseBar.sc + 1) : null;
             return (
               <div key={phase.id}>
                 <div style={{ position: "relative", display: "flex", height: ROW_H, background: "#ebebeb", borderBottom: "1px solid #ccc" }}>

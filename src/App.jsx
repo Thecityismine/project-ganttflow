@@ -83,15 +83,106 @@ const loadProjects = async () => {
 };
 
 // ── PNG export ────────────────────────────────────────────────────────────────
-async function exportPNG(el, filename) {
-  if (!window.html2canvas) await new Promise((res, rej) => {
+function loadScript(src, isReady) {
+  if (isReady()) return Promise.resolve();
+  return new Promise((resolve, reject) => {
+    const existing = Array.from(document.scripts).find((s) => s.src === src);
+    if (existing) {
+      existing.addEventListener("load", () => resolve(), { once: true });
+      existing.addEventListener("error", () => reject(new Error(`Failed to load ${src}`)), { once: true });
+      return;
+    }
     const s = document.createElement("script");
-    s.src = "https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js";
-    s.onload = res; s.onerror = rej; document.head.appendChild(s);
+    s.src = src;
+    s.async = true;
+    s.onload = () => resolve();
+    s.onerror = () => reject(new Error(`Failed to load ${src}`));
+    document.head.appendChild(s);
   });
-  const canvas = await window.html2canvas(el, { scale: 2, useCORS: true, backgroundColor: "#ffffff", logging: false });
+}
+
+async function ensureExportLibs(needPdf = false) {
+  await loadScript(
+    "https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js",
+    () => !!window.html2canvas
+  );
+  if (needPdf) {
+    await loadScript(
+      "https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js",
+      () => !!window.jspdf?.jsPDF
+    );
+  }
+}
+
+async function captureChartCanvas(el, scale = 2.2) {
+  await ensureExportLibs(false);
+  const width = Math.ceil(el.scrollWidth || el.offsetWidth);
+  const height = Math.ceil(el.scrollHeight || el.offsetHeight);
+  return window.html2canvas(el, {
+    scale,
+    useCORS: true,
+    backgroundColor: "#ffffff",
+    logging: false,
+    width,
+    height,
+    windowWidth: width,
+    windowHeight: height,
+    scrollX: 0,
+    scrollY: 0,
+  });
+}
+
+function fitToCanvas(sourceCanvas, { width, height, padding = 80, background = "#ffffff" }) {
+  const out = document.createElement("canvas");
+  out.width = width;
+  out.height = height;
+  const ctx = out.getContext("2d");
+  ctx.fillStyle = background;
+  ctx.fillRect(0, 0, out.width, out.height);
+
+  const availW = Math.max(1, out.width - padding * 2);
+  const availH = Math.max(1, out.height - padding * 2);
+  const scale = Math.min(availW / sourceCanvas.width, availH / sourceCanvas.height);
+  const drawW = Math.round(sourceCanvas.width * scale);
+  const drawH = Math.round(sourceCanvas.height * scale);
+  const dx = Math.round((out.width - drawW) / 2);
+  const dy = Math.round((out.height - drawH) / 2);
+
+  ctx.drawImage(sourceCanvas, dx, dy, drawW, drawH);
+  return out;
+}
+
+function downloadCanvas(canvas, filename) {
   const a = document.createElement("a");
-  a.download = filename; a.href = canvas.toDataURL("image/png"); a.click();
+  a.download = filename;
+  a.href = canvas.toDataURL("image/png");
+  a.click();
+}
+
+async function exportPNG(el, filename) {
+  const source = await captureChartCanvas(el, 2.2);
+  const fitted = fitToCanvas(source, { width: 3200, height: 2000, padding: 88 });
+  downloadCanvas(fitted, filename);
+}
+
+async function exportPDF(el, filename) {
+  await ensureExportLibs(true);
+  const source = await captureChartCanvas(el, 2.4);
+  const fitted = fitToCanvas(source, { width: 3300, height: 2550, padding: 96 });
+  const { jsPDF } = window.jspdf;
+  const pdf = new jsPDF({ orientation: "landscape", unit: "pt", format: "letter", compress: true });
+  const pageW = pdf.internal.pageSize.getWidth();
+  const pageH = pdf.internal.pageSize.getHeight();
+  const margin = 18;
+  const maxW = pageW - margin * 2;
+  const maxH = pageH - margin * 2;
+  const scale = Math.min(maxW / fitted.width, maxH / fitted.height);
+  const drawW = fitted.width * scale;
+  const drawH = fitted.height * scale;
+  const x = (pageW - drawW) / 2;
+  const y = (pageH - drawH) / 2;
+  pdf.addImage(fitted.toDataURL("image/png"), "PNG", x, y, drawW, drawH, undefined, "FAST");
+  pdf.save(filename);
 }
 
 // ── Factories ─────────────────────────────────────────────────────────────────
@@ -478,8 +569,9 @@ export default function App() {
   const [view,      setView]      = useState("dashboard");
   const [saving,    setSaving]    = useState(false);
   const [loading,   setLoading]   = useState(true);
-  const [msg,       setMsg]       = useState(null);
-  const [exporting, setExporting] = useState(false);
+  const [msg,          setMsg]          = useState(null);
+  const [exportingPNG, setExportingPNG] = useState(false);
+  const [exportingPDF, setExportingPDF] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -533,10 +625,19 @@ export default function App() {
   const handleExportPNG = async () => {
     const el = document.getElementById("gantt-export-root");
     if (!el) { flash("Switch to Preview first", true); return; }
-    setExporting(true);
+    setExportingPNG(true);
     try { await exportPNG(el, `${active?.name || "gantt"}-schedule.png`); flash("PNG exported!"); }
     catch (e) { flash("PNG export failed: " + e.message, true); }
-    setExporting(false);
+    setExportingPNG(false);
+  };
+
+  const handleExportPDF = async () => {
+    const el = document.getElementById("gantt-export-root");
+    if (!el) { flash("Switch to Preview first", true); return; }
+    setExportingPDF(true);
+    try { await exportPDF(el, `${active?.name || "gantt"}-schedule.pdf`); flash("PDF exported!"); }
+    catch (e) { flash("PDF export failed: " + e.message, true); }
+    setExportingPDF(false);
   };
 
   const navBtn = (a) => ({ background: a ? C.blue : "none", border: `1px solid ${a ? C.blue : C.border}`, color: a ? "white" : C.textDim, borderRadius: 6, padding: "5px 14px", cursor: "pointer", fontSize: 12, fontWeight: 600, fontFamily: "inherit", transition: "all 0.15s" });
@@ -559,12 +660,6 @@ export default function App() {
         ::-webkit-scrollbar { width: 6px; height: 6px; }
         ::-webkit-scrollbar-track { background: ${C.bg}; }
         ::-webkit-scrollbar-thumb { background: ${C.border}; border-radius: 3px; }
-        @page { size: 11in 8.5in landscape; margin: 0.35in; }
-        @media print {
-          .no-print { display: none !important; }
-          body { background: white !important; }
-          #gantt-print-area { display: block !important; }
-        }
       `}</style>
 
       {/* NAV */}
@@ -596,8 +691,8 @@ export default function App() {
         {view !== "dashboard" && active && (
           <>
             <button style={btnSec} onClick={handleSave} disabled={saving}>{saving ? "Saving…" : "💾 Save"}</button>
-            <button style={btnSec} onClick={handleExportPNG} disabled={exporting}>{exporting ? "Exporting…" : "🖼 Export PNG"}</button>
-            <button style={btnSec} onClick={() => window.print()}>🖨 Print / PDF</button>
+            <button style={btnSec} onClick={handleExportPNG} disabled={exportingPNG || exportingPDF}>{exportingPNG ? "Exporting…" : "🖼 Export PNG"}</button>
+            <button style={btnSec} onClick={handleExportPDF} disabled={exportingPNG || exportingPDF}>{exportingPDF ? "Exporting…" : "📄 Export PDF"}</button>
           </>
         )}
         <button style={btnPri} onClick={handleNew}>+ New Project</button>
@@ -647,15 +742,6 @@ export default function App() {
         </div>
       )}
 
-      {/* PRINT-ONLY */}
-      {view === "preview" && active && (
-        <>
-          <div id="gantt-print-area" style={{ display: "none" }}>
-            <GanttChart project={active} />
-          </div>
-          <style>{`@media print { #gantt-print-area { display: block !important; } }`}</style>
-        </>
-      )}
     </>
   );
 }

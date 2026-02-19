@@ -590,6 +590,7 @@ export default function App() {
         }
       } catch (e) {
         console.error("Firebase load error:", e);
+        flash(`Load failed: ${e?.code || "unknown"} - ${e?.message || "no details"}`, true);
         if (!cancelled) setProjects([newProject()]);
       }
       if (!cancelled) setLoading(false);
@@ -612,7 +613,7 @@ export default function App() {
         await saveProject(project);
       } catch (e) {
         console.error("Auto-save failed:", e);
-        flash("Auto-save failed - check Firebase config", true);
+        flash(`Auto-save failed: ${e?.code || "unknown"} - ${e?.message || "no details"}`, true);
       } finally {
         setSyncing(false);
         autoSaveTimerRef.current = null;

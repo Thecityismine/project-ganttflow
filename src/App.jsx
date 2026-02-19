@@ -320,7 +320,7 @@ function GanttChart({ project }) {
           {/* Week headers */}
           <div style={{ display: "flex", height: 26, borderBottom: "2px solid #999" }}>
             {months.map((m, mi) => m.weeks.map((w, wi) => (
-              <div key={`${mi}-${wi}`} style={{ width: COL_W, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 7, fontWeight: 600, color: "#666", borderRight: "1px solid #e0e0e0", background: wi === 0 ? "#f2f2f2" : "white" }}>{w.label}</div>
+              <div key={`${mi}-${wi}`} style={{ width: COL_W, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 8, fontWeight: 600, color: "#666", borderRight: "1px solid #e0e0e0", background: wi === 0 ? "#f2f2f2" : "white" }}>{w.label}</div>
             )))}
           </div>
 

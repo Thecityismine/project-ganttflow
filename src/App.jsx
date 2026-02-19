@@ -421,7 +421,7 @@ function MiniGantt({ project }) {
 function ProjectCard({ project, onOpen, onDelete, onDuplicate }) {
   const taskCount = project.phases.reduce((s, p) => s + p.tasks.length, 0);
   return (
-    <div onClick={() => onOpen(project.id)}
+    <div className="project-card" onClick={() => onOpen(project.id)}
       style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 10, padding: 18, cursor: "pointer", transition: "border-color 0.15s, transform 0.1s", position: "relative" }}
       onMouseEnter={e => { e.currentTarget.style.borderColor = C.blue; e.currentTarget.style.transform = "translateY(-1px)"; }}
       onMouseLeave={e => { e.currentTarget.style.borderColor = C.border; e.currentTarget.style.transform = ""; }}>
@@ -464,11 +464,11 @@ function GanttEditor({ project, onChange }) {
   const lbl = { fontSize: 10, color: C.textMuted, fontWeight: 600, letterSpacing: "0.05em", textTransform: "uppercase", marginBottom: 3, display: "block" };
 
   return (
-    <div style={{ padding: 20, fontFamily: "'DM Sans',sans-serif" }}>
+    <div className="editor-root" style={{ padding: 20, fontFamily: "'DM Sans',sans-serif" }}>
       {/* Project meta */}
       <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 8, padding: 16, marginBottom: 20 }}>
         <div style={{ fontSize: 13, fontWeight: 700, color: C.text, marginBottom: 12, textTransform: "uppercase", letterSpacing: "0.05em" }}>Project Details</div>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 140px 140px 160px auto", gap: 12, alignItems: "end" }}>
+        <div className="project-meta-grid" style={{ display: "grid", gap: 12, alignItems: "end" }}>
           <div>
             <label style={lbl}>Project Name</label>
             <input value={project.name || ""} onChange={e => upd(p => { p.name = e.target.value; })} style={inp} />
@@ -491,7 +491,7 @@ function GanttEditor({ project, onChange }) {
               {Object.keys(STATUS_COLORS).map(s => <option key={s}>{s}</option>)}
             </select>
           </div>
-          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6, paddingBottom: 2 }}>
+          <div className="today-line-cell" style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6, paddingBottom: 2 }}>
             <label style={{ ...lbl, marginBottom: 0 }}>Today Line</label>
             <input type="checkbox" checked={project.showToday !== false} onChange={e => upd(p => { p.showToday = e.target.checked; })} style={{ width: 18, height: 18, cursor: "pointer", accentColor: C.blue }} />
           </div>
@@ -501,18 +501,18 @@ function GanttEditor({ project, onChange }) {
       {/* Phases */}
       {project.phases.map((phase, pi) => (
         <div key={phase.id} style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 8, marginBottom: 16, overflow: "hidden" }}>
-          <div style={{ background: C.blueDim, padding: "8px 14px", display: "flex", alignItems: "center", gap: 10 }}>
+          <div className="phase-header-row" style={{ background: C.blueDim, padding: "8px 14px", display: "flex", alignItems: "center", gap: 10 }}>
             <input value={phase.name} onChange={e => upd(p => { p.phases[pi].name = e.target.value; })}
               style={{ ...inp, background: "transparent", border: "none", color: "white", fontWeight: 700, fontSize: 13, flex: 1, padding: "2px 4px" }} />
             <button onClick={() => upd(p => p.phases.splice(pi, 1))}
               style={{ background: `${C.red}33`, border: `1px solid ${C.red}55`, color: C.red, borderRadius: 4, padding: "2px 10px", cursor: "pointer", fontSize: 11, fontWeight: 600 }}>Remove Phase</button>
           </div>
-          <div style={{ padding: "10px 14px" }}>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 115px 115px 195px 115px 28px", gap: 8, marginBottom: 6 }}>
+          <div className="phase-table-wrap" style={{ padding: "10px 14px" }}>
+            <div className="phase-task-grid phase-task-header" style={{ display: "grid", gap: 8, marginBottom: 6 }}>
               {["Task Name","Start Date","End Date","Bar Type","Duration Label",""].map((h, i) => <div key={i} style={lbl}>{h}</div>)}
             </div>
             {phase.tasks.map((task, ti) => (
-              <div key={task.id} style={{ display: "grid", gridTemplateColumns: "1fr 115px 115px 195px 115px 28px", gap: 8, marginBottom: 6, alignItems: "center" }}>
+              <div className="phase-task-grid phase-task-row" key={task.id} style={{ display: "grid", gap: 8, marginBottom: 6, alignItems: "center" }}>
                 <input value={task.name} onChange={e => upd(p => { p.phases[pi].tasks[ti].name = e.target.value; })} style={inp} placeholder="Task name" />
                 <input type="date" value={task.startDate} onChange={e => upd(p => { p.phases[pi].tasks[ti].startDate = e.target.value; p.phases[pi].tasks[ti]._customStart = true; })} style={inp} />
                 <input type="date" value={task.endDate} onChange={e => upd(p => { p.phases[pi].tasks[ti].endDate = e.target.value; })} style={inp} />
@@ -690,6 +690,25 @@ export default function App() {
         ::-webkit-scrollbar { width: 6px; height: 6px; }
         ::-webkit-scrollbar-track { background: ${C.bg}; }
         ::-webkit-scrollbar-thumb { background: ${C.border}; border-radius: 3px; }
+        .project-meta-grid { grid-template-columns: 1fr 1fr 140px 140px 160px auto; }
+        .phase-table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+        .phase-task-grid { grid-template-columns: minmax(220px, 1fr) 115px 115px 195px 115px 28px; min-width: 790px; }
+        .dashboard-grid { grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)) !important; }
+        @media (max-width: 960px) {
+          .editor-root { padding: 14px !important; }
+          .project-meta-grid { grid-template-columns: 1fr 1fr !important; }
+          .dashboard-root { padding: 20px 16px !important; }
+        }
+        @media (max-width: 700px) {
+          .project-meta-grid { grid-template-columns: 1fr !important; }
+          .today-line-cell { align-items: flex-start !important; }
+          .phase-header-row { flex-wrap: wrap; }
+          .phase-header-row button { width: 100%; }
+          .phase-task-grid { min-width: 760px; }
+          .dashboard-root { padding: 14px 10px !important; }
+          .dashboard-grid { grid-template-columns: 1fr !important; gap: 12px !important; }
+          .project-card, .new-project-card { padding: 14px !important; }
+        }
       `}</style>
 
       {/* NAV */}
@@ -730,16 +749,16 @@ export default function App() {
 
       {/* DASHBOARD */}
       {view === "dashboard" && (
-        <div className="no-print" style={{ padding: "32px 28px" }}>
+        <div className="no-print dashboard-root" style={{ padding: "32px 28px" }}>
           <div style={{ marginBottom: 28 }}>
             <div style={{ fontSize: 24, fontWeight: 800, color: C.text, letterSpacing: "-0.01em" }}>Project Schedules</div>
             <div style={{ fontSize: 13, color: C.textMuted, marginTop: 4 }}>{projects.length} project{projects.length !== 1 ? "s" : ""}</div>
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(380px,1fr))", gap: 20 }}>
+          <div className="dashboard-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(380px,1fr))", gap: 20 }}>
             {projects.map(p => (
               <ProjectCard key={p.id} project={p} onOpen={id => { setActiveId(id); setView("edit"); }} onDelete={handleDelete} onDuplicate={handleDuplicate} />
             ))}
-            <div onClick={handleNew}
+            <div className="new-project-card" onClick={handleNew}
               style={{ background: C.surface, border: `1px dashed ${C.border}`, borderRadius: 10, padding: 18, cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: 180, gap: 8, color: C.textMuted, transition: "border-color 0.15s" }}
               onMouseEnter={e => e.currentTarget.style.borderColor = C.blue}
               onMouseLeave={e => e.currentTarget.style.borderColor = C.border}>

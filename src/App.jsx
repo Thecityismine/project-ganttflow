@@ -257,6 +257,8 @@ const StatusBadge = ({ status }) => {
 
 // ── GANTT CHART ───────────────────────────────────────────────────────────────
 const LABEL_W = 220, COL_W = 28, ROW_H = 22, HDR_H = 52;
+const MIN_PREVIEW_COLS = 56;
+const PREVIEW_DATE_LABEL = "February 18, 2026";
 
 function GanttChart({ project }) {
   const allTaskDates = project.phases.flatMap(ph =>
@@ -265,8 +267,26 @@ function GanttChart({ project }) {
   const timelineEnd = allTaskDates.length
     ? allTaskDates.reduce((a, b) => a > b ? a : b)
     : project.endDate;
-  const months    = buildTimeline(project.startDate, timelineEnd);
-  const totalCols = months.reduce((s, m) => s + m.weeks.length, 0);
+  const months = buildTimeline(project.startDate, timelineEnd);
+  let totalCols = months.reduce((s, m) => s + m.weeks.length, 0);
+  if (months.length && totalCols < MIN_PREVIEW_COLS) {
+    let cursor = new Date(months[months.length - 1].yr, months[months.length - 1].mo + 1, 1);
+    while (totalCols < MIN_PREVIEW_COLS) {
+      const yr = cursor.getFullYear();
+      const mo = cursor.getMonth();
+      const w1 = mondayBefore(new Date(yr, mo, 1));
+      months.push({
+        yr,
+        mo,
+        weeks: Array.from({ length: 4 }, (_, i) => {
+          const ws = addDays(w1, i * 7);
+          return { label: `W${i + 1}`, start: ws, end: addDays(ws, 6) };
+        }),
+      });
+      totalCols += 4;
+      cursor = new Date(yr, mo + 1, 1);
+    }
+  }
   const gridW     = totalCols * COL_W;
   const todayCol  = project.showToday !== false ? getTodayCol(months) : null;
   const usedTypes = new Set(project.phases.flatMap(ph => ph.tasks.map(t => t.type)));
@@ -289,7 +309,7 @@ function GanttChart({ project }) {
         </div>
         <div style={{ fontSize: 11, color: "#888", textAlign: "right" }}>
           {project.location && <div>{project.location}</div>}
-          <div style={{ marginTop: 2 }}>{project.startDate} – {project.endDate}</div>
+          <div style={{ marginTop: 2 }}>{PREVIEW_DATE_LABEL}</div>
         </div>
       </div>
 
@@ -448,30 +468,48 @@ function GanttEditor({ project, onChange }) {
 
   const handleStartDateChange = (newStart) => {
     upd(p => {
+      const DAY_MS = 24 * 60 * 60 * 1000;
+      const oldProjectStart = pd(p.startDate);
       const nextStart = pd(newStart);
+      const firstTaskStart = pd(p.phases?.[0]?.tasks?.[0]?.startDate);
+      const taskStartDates = p.phases.flatMap((phase) => phase.tasks.map((task) => pd(task.startDate))).filter(Boolean);
+      const earliestStart = taskStartDates.length ? taskStartDates.reduce((min, d) => (d < min ? d : min)) : null;
+      const anchorStart = firstTaskStart || earliestStart || oldProjectStart;
+
       p.startDate = newStart;
-      if (!nextStart) return;
+      if (!nextStart || !anchorStart) return;
 
-      const taskStartDates = p.phases
-        .flatMap((phase) => phase.tasks.map((task) => pd(task.startDate)))
-        .filter(Boolean);
-      const anchorStart = taskStartDates.length
-        ? taskStartDates.reduce((min, d) => (d < min ? d : min))
-        : pd(p.startDate);
-      if (!anchorStart) return;
-
-      const dayShift = Math.round((nextStart - anchorStart) / (24 * 60 * 60 * 1000));
-      if (!dayShift) return;
-
+      const dayShift = Math.round((nextStart - anchorStart) / DAY_MS);
+      if (!dayShift) {
+        // If there are legacy dates behind project start, normalize them.
+        p.phases.forEach((phase) => {
+          phase.tasks.forEach((task) => {
+            const taskStart = pd(task.startDate);
+            const taskEnd = pd(task.endDate);
+            if (!taskStart || taskStart >= nextStart) return;
+            const durationDays = taskEnd ? Math.max(0, Math.round((taskEnd - taskStart) / DAY_MS)) : 0;
+            task.startDate = toStr(nextStart);
+            if (taskEnd) task.endDate = toStr(addDays(nextStart, durationDays));
+          });
+        });
+      }
       const projectEnd = pd(p.endDate);
-      if (projectEnd) p.endDate = toStr(addDays(projectEnd, dayShift));
+      if (projectEnd && dayShift) p.endDate = toStr(addDays(projectEnd, dayShift));
 
       p.phases.forEach((phase) => {
         phase.tasks.forEach((task) => {
           const taskStart = pd(task.startDate);
           const taskEnd = pd(task.endDate);
-          if (taskStart) task.startDate = toStr(addDays(taskStart, dayShift));
-          if (taskEnd) task.endDate = toStr(addDays(taskEnd, dayShift));
+          if (taskStart && dayShift) task.startDate = toStr(addDays(taskStart, dayShift));
+          if (taskEnd && dayShift) task.endDate = toStr(addDays(taskEnd, dayShift));
+
+          const shiftedStart = pd(task.startDate);
+          const shiftedEnd = pd(task.endDate);
+          if (shiftedStart && shiftedStart < nextStart) {
+            const durationDays = shiftedEnd ? Math.max(0, Math.round((shiftedEnd - shiftedStart) / DAY_MS)) : 0;
+            task.startDate = toStr(nextStart);
+            if (shiftedEnd) task.endDate = toStr(addDays(nextStart, durationDays));
+          }
         });
       });
 

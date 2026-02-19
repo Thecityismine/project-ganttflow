@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { db } from "./firebase";
 import {
   collection, doc, setDoc, deleteDoc, getDocs
@@ -276,18 +276,18 @@ function GanttChart({ project }) {
       {/* Title header */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginBottom: 10, borderBottom: "2.5px solid #111", paddingBottom: 6 }}>
         <div>
-          <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.15em", color: "#666", textTransform: "uppercase" }}>Project Management &amp; Logistics</div>
-          <div style={{ fontSize: 15, fontWeight: 800, letterSpacing: "0.04em", textTransform: "uppercase", marginTop: 1 }}>
+          <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.15em", color: "#666", textTransform: "uppercase" }}>Project Management &amp; Logistics</div>
+          <div style={{ fontSize: 18, fontWeight: 800, letterSpacing: "0.04em", textTransform: "uppercase", marginTop: 1 }}>
             {project.name} <span style={{ fontWeight: 300, color: "#666" }}>| SCHEDULE</span>
             {(() => {
               const s = pd(project.startDate), e = pd(project.endDate);
               if (!s || !e) return null;
               const weeks = Math.round((e - s) / (7 * 24 * 60 * 60 * 1000));
-              return <span style={{ fontWeight: 300, color: "#888", fontSize: 15, marginLeft: 10, letterSpacing: "0.04em", textTransform: "uppercase" }}>{weeks} Weeks</span>;
+              return <span style={{ fontWeight: 300, color: "#888", fontSize: 18, marginLeft: 10, letterSpacing: "0.04em", textTransform: "uppercase" }}>{weeks} Weeks</span>;
             })()}
           </div>
         </div>
-        <div style={{ fontSize: 9, color: "#888", textAlign: "right" }}>
+        <div style={{ fontSize: 11, color: "#888", textAlign: "right" }}>
           {project.location && <div>{project.location}</div>}
           <div style={{ marginTop: 2 }}>{project.startDate} – {project.endDate}</div>
         </div>
@@ -567,41 +567,69 @@ export default function App() {
   const [projects,  setProjects]  = useState([]);
   const [activeId,  setActiveId]  = useState(null);
   const [view,      setView]      = useState("dashboard");
-  const [saving,    setSaving]    = useState(false);
   const [loading,   setLoading]   = useState(true);
+  const [syncing,   setSyncing]   = useState(false);
   const [msg,          setMsg]          = useState(null);
   const [exportingPNG, setExportingPNG] = useState(false);
   const [exportingPDF, setExportingPDF] = useState(false);
+  const autoSaveTimerRef = useRef(null);
 
   useEffect(() => {
+    let cancelled = false;
     (async () => {
       setLoading(true);
       try {
         const loaded = await loadProjects();
-        setProjects(loaded.length ? loaded : [newProject()]);
+        if (cancelled) return;
+        if (loaded.length) {
+          setProjects(loaded);
+        } else {
+          const starter = newProject();
+          setProjects([starter]);
+          try { await saveProject(starter); } catch (e) { console.error("Initial save error:", e); }
+        }
       } catch (e) {
         console.error("Firebase load error:", e);
-        setProjects([newProject()]);
+        if (!cancelled) setProjects([newProject()]);
       }
-      setLoading(false);
+      if (!cancelled) setLoading(false);
     })();
+
+    return () => {
+      cancelled = true;
+      if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
+    };
   }, []);
 
   const active = projects.find(p => p.id === activeId);
   const flash  = (text, err = false) => { setMsg({ text, err }); setTimeout(() => setMsg(null), 2500); };
-
-  const handleSave = async () => {
-    setSaving(true);
-    try { await saveProject(active); flash("Saved ✓"); }
-    catch (e) { console.error(e); flash("Save failed — check Firebase config", true); }
-    setSaving(false);
+  const queueAutoSave = (project) => {
+    if (!project?.id) return;
+    if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
+    setSyncing(true);
+    autoSaveTimerRef.current = setTimeout(async () => {
+      try {
+        await saveProject(project);
+      } catch (e) {
+        console.error("Auto-save failed:", e);
+        flash("Auto-save failed - check Firebase config", true);
+      } finally {
+        setSyncing(false);
+        autoSaveTimerRef.current = null;
+      }
+    }, 500);
   };
 
-  const handleChange = (updated) => setProjects(prev => prev.map(p => p.id === updated.id ? updated : p));
+
+  const handleChange = (updated) => {
+    setProjects(prev => prev.map(p => p.id === updated.id ? updated : p));
+    queueAutoSave(updated);
+  };
 
   const handleNew = () => {
     const p = newProject();
     setProjects(prev => [...prev, p]);
+    queueAutoSave(p);
     setActiveId(p.id); setView("edit");
   };
 
@@ -613,6 +641,7 @@ export default function App() {
     copy.name  = copy.name + " (Copy)";
     copy.phases = copy.phases.map(ph => ({ ...ph, id: uid(), tasks: ph.tasks.map(t => ({ ...t, id: uid() })) }));
     setProjects(prev => [...prev, copy]);
+    queueAutoSave(copy);
     flash("Project duplicated ✓");
   };
 
@@ -687,10 +716,10 @@ export default function App() {
 
         <div style={{ flex: 1 }} />
         {msg && <span style={{ fontSize: 11, fontWeight: 600, color: msg.err ? C.red : C.green }}>{msg.text}</span>}
+        {syncing && <span style={{ fontSize: 11, fontWeight: 600, color: C.textMuted }}>Syncing...</span>}
 
         {view !== "dashboard" && active && (
           <>
-            <button style={btnSec} onClick={handleSave} disabled={saving}>{saving ? "Saving…" : "💾 Save"}</button>
             <button style={btnSec} onClick={handleExportPNG} disabled={exportingPNG || exportingPDF}>{exportingPNG ? "Exporting…" : "🖼 Export PNG"}</button>
             <button style={btnSec} onClick={handleExportPDF} disabled={exportingPNG || exportingPDF}>{exportingPDF ? "Exporting…" : "📄 Export PDF"}</button>
           </>
@@ -745,3 +774,4 @@ export default function App() {
     </>
   );
 }
+

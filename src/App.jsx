@@ -298,6 +298,14 @@ function GanttChart({ project }) {
   const gridW     = totalCols * COL_W;
   const todayCol  = project.showToday !== false ? getTodayCol(months) : null;
   const usedTypes = new Set(project.phases.flatMap(ph => ph.tasks.map(t => t.type)));
+  const totalPhaseWeeks = project.phases.reduce((sum, phase) => {
+    const phaseStartDates = phase.tasks.map((t) => t.startDate).filter(Boolean);
+    const phaseEndDates = phase.tasks.map((t) => t.endDate).filter(Boolean);
+    const phaseStart = phaseStartDates.length ? phaseStartDates.reduce((a, b) => (a < b ? a : b)) : null;
+    const phaseEnd = phaseEndDates.length ? phaseEndDates.reduce((a, b) => (a > b ? a : b)) : null;
+    const phaseBar = getBarCols(phaseStart, phaseEnd, months);
+    return phaseBar ? sum + (phaseBar.ec - phaseBar.sc + 1) : sum;
+  }, 0);
   const previewDateLabel = new Date().toLocaleDateString("en-US", {
     month: "long",
     day: "numeric",
@@ -312,12 +320,11 @@ function GanttChart({ project }) {
           <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.15em", color: "#666", textTransform: "uppercase" }}>Project Management &amp; Logistics</div>
           <div style={{ fontSize: 18, fontWeight: 800, letterSpacing: "0.04em", textTransform: "uppercase", marginTop: 1 }}>
             {project.name} <span style={{ fontWeight: 300, color: "#666" }}>| SCHEDULE</span>
-            {(() => {
-              const s = pd(project.startDate), e = pd(project.endDate);
-              if (!s || !e) return null;
-              const weeks = Math.round((e - s) / (7 * 24 * 60 * 60 * 1000));
-              return <span style={{ fontWeight: 300, color: "#888", fontSize: 18, marginLeft: 10, letterSpacing: "0.04em", textTransform: "uppercase" }}>{weeks} Weeks</span>;
-            })()}
+            {totalPhaseWeeks > 0 && (
+              <span style={{ fontWeight: 300, color: "#888", fontSize: 18, marginLeft: 10, letterSpacing: "0.04em", textTransform: "uppercase" }}>
+                {totalPhaseWeeks} Weeks
+              </span>
+            )}
           </div>
         </div>
         <div style={{ fontSize: 11, color: "#888", textAlign: "right" }}>

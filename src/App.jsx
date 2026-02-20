@@ -263,7 +263,6 @@ const StatusBadge = ({ status }) => {
 // ── GANTT CHART ───────────────────────────────────────────────────────────────
 const LABEL_W = 220, COL_W = 28, ROW_H = 22, HDR_H = 52;
 const MIN_PREVIEW_COLS = 56;
-const PREVIEW_DATE_LABEL = "February 18, 2026";
 
 function GanttChart({ project }) {
   const allTaskDates = project.phases.flatMap(ph =>
@@ -299,6 +298,11 @@ function GanttChart({ project }) {
   const gridW     = totalCols * COL_W;
   const todayCol  = project.showToday !== false ? getTodayCol(months) : null;
   const usedTypes = new Set(project.phases.flatMap(ph => ph.tasks.map(t => t.type)));
+  const previewDateLabel = new Date().toLocaleDateString("en-US", {
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+  });
 
   return (
     <div id="gantt-export-root" style={{ background: "white", color: "#111", fontFamily: "'DM Sans',sans-serif", minWidth: LABEL_W + gridW }}>
@@ -318,7 +322,7 @@ function GanttChart({ project }) {
         </div>
         <div style={{ fontSize: 11, color: "#888", textAlign: "right" }}>
           {project.location && <div>{project.location}</div>}
-          <div style={{ marginTop: 2 }}>{PREVIEW_DATE_LABEL}</div>
+          <div style={{ marginTop: 2 }}>{previewDateLabel}</div>
         </div>
       </div>
 
